@@ -1,0 +1,282 @@
+<!--Add a button for the user to click to initiate auth sequence -->
+<style>
+  body {
+    background: #51977f;
+    margin: 0;
+  }
+  .main-color {
+    background-color: #51977f;
+  }
+  .box__dragndrop,
+  .box__uploading,
+  .box__success,
+  .box__error {
+    display: none;
+  }
+  .box.has-advanced-upload {
+    color: white;
+    outline: 2px dashed white;
+    outline-offset: -10px;
+    height: 400px;
+  }
+  .box.has-advanced-upload .box__dragndrop {
+    display: inline;
+  }
+  .box__input {
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .ode {
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+  }
+  .ode * {
+    padding: 16px;
+  }
+  .btn {
+    text-align: center;
+    width: 100%;
+    background: none;
+    padding: 16px;
+    border-radius: 8% /28%;
+    border: 0.125rem solid white;
+    color: white;
+  }
+  .img {
+    height: 96px;
+  }
+  .loader {
+  border: 16px solid #f3f3f3;
+  border-radius: 50%;
+  border-top: 16px solid #3498db;
+  width: 120px;
+  height: 120px;
+  -webkit-animation: spin 2s linear infinite; /* Safari */
+  animation: spin 2s linear infinite;
+}
+
+/* Safari */
+@-webkit-keyframes spin {
+  0% { -webkit-transform: rotate(0deg); }
+  100% { -webkit-transform: rotate(360deg); }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.center {
+  display: flex;
+  justify-content: center;
+}
+.toolbar {
+  height: 65px;
+  display: flex;
+  align-items: center;
+}
+.header {
+  padding: 0 8px;
+  font-size: x-large;
+  color: white;
+}
+.search {
+border-radius: 1% / 16%;
+background-color: white;
+width: 100%;
+padding: 16px;
+}
+</style>
+<body>
+  <div id="step2" style="display: none;">
+    <div class="main-color toolbar">
+      <div class="header">
+        Doc Summary
+      </div>
+      <input class="search" id="searchInput">
+      <button onclick="searching(document.querySelector('#searchInput').value)">Search</button>
+    </div>
+    <div style="display: flex;">
+      <div id="content" style="width: 80%;">
+      </div>
+      <div style="width: 20%;">
+        <div style="display: flex; flex-direction: column; overflow-y: auto;    border-left: 1px solid black;
+        height: 100%;
+        padding: 16px;
+        margin: 16px;">
+          Sentences
+          <div id="sentences"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="box has-advanced-upload" id="step1">
+    <div class="box__input">
+      <input class="box__file" type="file" name="files[]" id="file" data-multiple-caption="{count} files selected" multiple style="display: none" onchange="upload(event)"/>
+      <div class="ode">
+        <img class="img" src="./backup_black_24dp.svg"/>
+        <label for="file">
+          <div class="btn">Select Pdf</div>
+        </label>
+          <span>
+            <strong>
+              Drag & Drop pdf to show
+            </strong>
+          </span>
+        </div>
+      </div>
+  </div>
+  <div class="center">
+    <div id="loader"></div>
+  </div>
+  <button id="authorize-button" onclick="checkAuth()">Authorize</button>
+  <!-- <input type="file" onchange="upload(event)"/> -->
+  <script type="text/javascript">
+    var clientId = '1097935996613-i5254mr83a5nskur0e3a2jag6vhvhdj8.apps.googleusercontent.com';
+
+    var apiKey = 'AIzaSyAM2C_FnbCdx6bIpcPucUIKEzkcgJp5YVs';
+
+    var scopes = ['https://www.googleapis.com/auth/drive',
+  'https://www.googleapis.com/auth/drive.appdata',
+  'https://www.googleapis.com/auth/drive.apps.readonly',
+  'https://www.googleapis.com/auth/drive.file'].join(" ")
+
+    function handleClientLoad() {
+      // Step 2: Reference the API key
+      gapi.client.setApiKey(apiKey);
+      gapi.load('auth2', function() {
+        gapi.auth2.init({
+          client_id: clientId,
+          scope: scopes,
+          immediate: true
+        }).then(x => {
+          // GoogleAuth.signIn()
+        })
+      });
+      // window.setTimeout(checkAuth,1);
+    }
+
+    function checkAuth() {
+      gapi.auth.authorize({client_id: clientId, scope: scopes, immediate: true}, handleAuthResult);
+    }
+
+    function handleAuthResult(authResult) {
+      var authorizeButton = document.getElementById('authorize-button');
+      if (authResult && !authResult.error) {
+        authorizeButton.style.visibility = 'hidden';
+      } else {
+        authorizeButton.style.visibility = '';
+        authorizeButton.onclick = handleAuthClick;
+      }
+    }
+
+    function handleAuthClick(event) {
+      // Step 3: get authorization to use private data
+      gapi.auth.authorize({client_id: clientId, scope: scopes, immediate: false}, handleAuthResult);
+      return false;
+    }
+
+    function upload(y) {
+      insertFile(y.target.files[0])
+    }
+
+    function insertFile(fileData, callback) {
+      showLoading(true);
+    const boundary = '-------314159265358979323846';
+    const delimiter = "\r\n--" + boundary + "\r\n";
+    const close_delim = "\r\n--" + boundary + "--";
+
+    var reader = new FileReader();
+    reader.readAsBinaryString(fileData);
+    reader.onload = function(e) {
+      var contentType = fileData.type || 'application/octet-stream';
+      var metadata = {
+        'title': fileData.fileName,
+        'mimeType': contentType
+      };
+
+      var base64Data = btoa(reader.result);
+      var multipartRequestBody =
+          delimiter +
+          'Content-Type: application/json\r\n\r\n' +
+          JSON.stringify(metadata) +
+          delimiter +
+          'Content-Type: ' + contentType + '\r\n' +
+          'Content-Transfer-Encoding: base64\r\n' +
+          '\r\n' +
+          base64Data +
+          close_delim;
+
+      var request = gapi.client.request({
+          'path': '/upload/drive/v2/files',
+          'method': 'POST',
+          'params': {'uploadType': 'multipart', 'convert': true},
+          'headers': {
+            'Content-Type': 'multipart/mixed; boundary="' + boundary + '"'
+          },
+          'body': multipartRequestBody});
+      if (!callback) {
+        callback = function(file) {
+          token = gapi.auth.getToken().access_token;
+          fetch(`https://test-dot-sanskrut-dev.uc.r.appspot.com/apis/v1/download?url=${file.exportLinks["text/html"]}`, {headers: {"authorization": 'Bearer ' + token}})
+          .then(x => x.text())
+          .then(x => {
+            step2()
+            document.getElementById('content').innerHTML = x;
+            showLoading(false);
+          })
+        };
+      }
+      request.execute(callback);
+    }
+  }
+
+  function step2() {
+    document.querySelector('#step1').style.display = 'none';
+    document.querySelector('#step2').style.display = 'initial';
+    document.body.style.background = 'white'
+  }
+
+  function searching(text) {
+    text = text.trim()
+    document.querySelector('#sentences').innerHTML  =''
+    if (text) {
+      const xx = `\.?(.*?${text}.*?)\.`;
+      const re = new RegExp(xx, 'gim')
+      const matches = document.body.querySelector('#content').innerText.matchAll(re)
+      for (let x of matches) {
+        document.querySelector('#sentences').innerHTML = `
+        <h4>${x[0]}</h4><hr>
+        `
+      }
+    }
+  }
+  var droppedFiles;
+  var $form = document.querySelector('.box');
+  on($form, 'drag dragstart dragend dragover dragenter dragleave drop', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+  })
+  on($form, 'drop', function(e) {
+    droppedFiles = e.dataTransfer.files;
+  });
+
+
+  // }
+
+  function on(elem, events, callback) {
+    events.split(" ").forEach(x => {
+      elem.addEventListener(x, callback);
+    })
+  }
+  function showLoading(show) {
+    const y = document.querySelector('#loader').classList;
+    if (show) y.add('loader')
+    else y.remove('loader')
+  }
+  </script>
+  <script src="https://apis.google.com/js/client.js?onload=handleClientLoad"></script>
+</body>
